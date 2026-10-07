@@ -1,0 +1,11 @@
+* text=auto eol=lf
+
+# Preserve binary assets without text conversion.
+*.docx binary
+*.pdf binary
+*.png binary
+*.pptx binary
+
+# Saved model JSON is machine-generated and not useful in language statistics.
+aml-detection-project/models/*.json linguist-generated=true
+

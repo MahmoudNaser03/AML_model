@@ -1,0 +1,9 @@
+artifacts/
+checkpoints/
+data/
+data/external/*
+data/processed/*
+data/raw/*
+venv/
+*.Zone.Identifier
+*sec.endpoint*

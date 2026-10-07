@@ -1,0 +1,46 @@
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+.claude/settings.local.json
+
+# Python environments and generated files
+**/.venv/
+**/venv/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Local data, intermediate outputs, and experiment state
+AML_project/
+aml-detection-project/data/
+aml-detection-project/checkpoints/
+aml-detection-project/artifacts/
+AML_production/data/
+AML_production/artifacts/
+AML_production/production_artifacts/
+AML_production/production_artifacts.backup-*/
+AML_production/mlruns/
+AML_production/outputs/
+AML_production/output/
+AML_production/tmp/
+AML_production/.aml-release-*/
+AML_production/saved_aml_history.csv
+AML_production/*.sqlite*
+AML_production/*.db*
+
+# Editor and operating-system metadata
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*:Zone.Identifier
+*:sec.endpointdlp
+*sec.endpoint*

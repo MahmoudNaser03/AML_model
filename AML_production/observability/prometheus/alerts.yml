@@ -1,0 +1,38 @@
+groups:
+  - name: aml-service
+    rules:
+      - alert: AMLApiDown
+        expr: up{job="aml-api"} == 0
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: AML API cannot be scraped
+          description: Check ray-serve logs, readiness, and Ray replica health.
+      - alert: AMLArtifactsUnavailable
+        expr: aml_model_available == 0
+        for: 30s
+        labels: {severity: critical}
+        annotations:
+          summary: A replica rejected its model bundle
+          description: Inspect the release manifest, feature version and checksums. Roll back the artifact directory if needed.
+      - alert: AMLScoringErrors
+        expr: sum(rate(aml_http_requests_total{path=~"/predict.*",status=~"5.."}[5m])) / clamp_min(sum(rate(aml_http_requests_total{path=~"/predict.*"}[5m])), 0.001) > 0.05
+        for: 2m
+        labels: {severity: critical}
+        annotations:
+          summary: More than 5% of scoring requests are failing
+          description: Correlate request IDs in Loki with scoring traces in Tempo.
+      - alert: AMLScoringSlow
+        expr: histogram_quantile(0.95, sum by (le) (rate(aml_http_request_duration_seconds_bucket{path=~"/predict.*"}[5m]))) > 5
+        for: 2m
+        labels: {severity: warning}
+        annotations:
+          summary: Scoring p95 exceeds five seconds
+          description: Check batch sizes, stage timings, replica queue pressure and CPU saturation.
+      - alert: AMLAlertVolumeChanged
+        expr: sum(rate(aml_scoring_alerts_total[15m])) / clamp_min(sum(rate(aml_scoring_transactions_total[15m])), 0.001) > 0.1
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: More than 10% of scored transactions are alerted
+          description: Investigate input population, batch history length, and model version before changing thresholds.

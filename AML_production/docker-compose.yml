@@ -1,0 +1,113 @@
+services:
+  ray-serve:
+    build: .
+    command: python serve_app.py
+    ports: ["127.0.0.1:8000:8000", "127.0.0.1:8265:8265"]
+    shm_size: 1gb
+    environment:
+      RAY_METRICS_EXPORT_PORT: "8080"
+      RAY_METRICS_REPORT_INTERVAL_MS: "1000"
+      OTEL_SERVICE_NAME: aml-model-api
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+      OTEL_EXPORTER_OTLP_INSECURE: "true"
+      DEPLOYMENT_ENVIRONMENT: docker-compose
+      AML_API_KEY: ${AML_API_KEY:-}
+      AML_CACHE_PATH: /app/data/explanations.sqlite
+      AML_MODEL_THREADS: "1"
+    volumes:
+      - ./production_artifacts:/app/production_artifacts:ro
+      - explanation_cache:/app/data
+    depends_on:
+      - otel-collector
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+  dashboard:
+    build: .
+    command: streamlit run dashboard.py --server.address 0.0.0.0 --server.port 8501
+    ports: ["127.0.0.1:8501:8501"]
+    environment:
+      AML_API_URL: http://ray-serve:8000
+      AML_HISTORY_PATH: /app/data/dashboard_history.sqlite
+      AML_PERSIST_HISTORY: ${AML_PERSIST_HISTORY:-false}
+      AML_API_KEY: ${AML_API_KEY:-}
+    volumes:
+      - aml_history:/app/data
+    depends_on:
+      ray-serve:
+        condition: service_healthy
+  replica-monitor:
+    build: .
+    command: streamlit run replica_monitor.py --server.address 0.0.0.0 --server.port 8502
+    ports: ["127.0.0.1:8502:8502"]
+    environment:
+      RAY_DASHBOARD_URL: http://ray-serve:8265
+      RAY_SERVE_API_URL: http://ray-serve:8000
+      MONITOR_HISTORY_PATH: /app/data/serve_monitor_history.csv
+      AML_API_KEY: ${AML_API_KEY:-}
+    volumes:
+      - serve_monitor_history:/app/data
+    depends_on:
+      ray-serve:
+        condition: service_healthy
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    ports: ["127.0.0.1:9090:9090"]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      ray-serve:
+        condition: service_healthy
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.160.0
+    command: ["--config=/etc/otelcol-contrib/collector.yml"]
+    volumes:
+      - ./observability/otel/collector.yml:/etc/otelcol-contrib/collector.yml:ro
+    depends_on:
+      - tempo
+      - loki
+  tempo:
+    image: grafana/tempo:2.7.2
+    command: ["-config.file=/etc/tempo.yml"]
+    volumes:
+      - ./observability/tempo/tempo.yml:/etc/tempo.yml:ro
+      - tempo_data:/var/tempo
+  loki:
+    image: grafana/loki:3.0.0
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    volumes:
+      - ./observability/loki/loki.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+  grafana:
+    image: grafana/grafana:11.1.4
+    ports: ["127.0.0.1:3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+      - tempo
+      - loki
+
+volumes:
+  explanation_cache:
+  aml_history:
+  serve_monitor_history:
+  prometheus_data:
+  grafana_data:
+  tempo_data:
+  loki_data:

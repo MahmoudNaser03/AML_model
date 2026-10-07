@@ -1,0 +1,136 @@
+{
+  "annotations": {"list": []},
+  "editable": false,
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "short", "decimals": 0}, "overrides": []},
+      "gridPos": {"h": 7, "w": 6, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "orientation": "auto", "textMode": "auto"},
+      "targets": [{"expr": "sum(ray_serve_deployment_replica_healthy{job=\"ray\",application=\"aml\",deployment=\"AMLAPI\"})", "refId": "A"}],
+      "title": "Healthy replicas",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "short", "decimals": 0}, "overrides": []},
+      "gridPos": {"h": 7, "w": 6, "x": 6, "y": 0},
+      "id": 2,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "orientation": "auto", "textMode": "auto"},
+      "targets": [{"expr": "sum(ray_serve_replica_processing_queries{job=\"ray\",application=\"aml\",deployment=\"AMLAPI\"})", "refId": "A"}],
+      "title": "Requests executing now",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "short", "decimals": 0}, "overrides": []},
+      "gridPos": {"h": 7, "w": 6, "x": 12, "y": 0},
+      "id": 3,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "orientation": "auto", "textMode": "auto"},
+      "targets": [{"expr": "sum(ray_serve_deployment_queued_queries{job=\"ray\",application=\"aml\",deployment=\"AMLAPI\"})", "refId": "A"}],
+      "title": "Requests waiting for a replica",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "short", "decimals": 0}, "overrides": []},
+      "gridPos": {"h": 7, "w": 6, "x": 18, "y": 0},
+      "id": 4,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "orientation": "auto", "textMode": "auto"},
+      "targets": [{"expr": "sum(increase(ray_serve_deployment_replica_starts_total{job=\"ray\",application=\"aml\",deployment=\"AMLAPI\"}[15m]))", "refId": "A"}],
+      "title": "Replica starts (15m)",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "short", "decimals": 0}, "overrides": []},
+      "gridPos": {"h": 9, "w": 12, "x": 0, "y": 7},
+      "id": 5,
+      "targets": [
+        {"expr": "sum(ray_serve_deployment_replica_healthy{job=\"ray\",application=\"aml\",deployment=\"AMLAPI\"})", "legendFormat": "healthy replicas", "refId": "A"},
+        {"expr": "max(ray_serve_autoscaling_target_replicas{job=\"ray\",application=\"aml\",deployment=\"AMLAPI\"})", "legendFormat": "autoscaler target", "refId": "B"},
+        {"expr": "max(ray_serve_autoscaling_desired_replicas{job=\"ray\",application=\"aml\",deployment=\"AMLAPI\"})", "legendFormat": "raw desired", "refId": "C"}
+      ],
+      "title": "Autoscaler decision vs running replicas",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "short", "decimals": 0}, "overrides": []},
+      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 7},
+      "id": 6,
+      "targets": [{"expr": "sum by (replica) (ray_serve_replica_processing_queries{job=\"ray\",application=\"aml\",deployment=\"AMLAPI\",replica=~\"$replica\"})", "legendFormat": "{{replica}}", "refId": "A"}],
+      "title": "Concurrent work by replica",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+      "gridPos": {"h": 9, "w": 12, "x": 0, "y": 16},
+      "id": 7,
+      "targets": [{"expr": "sum by (replica) (rate(ray_serve_deployment_request_counter_total{job=\"ray\",application=\"aml\",deployment=\"AMLAPI\",replica=~\"$replica\",route!~\"/metrics|/health\"}[1m]))", "legendFormat": "{{replica}}", "refId": "A"}],
+      "title": "Request throughput by replica",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 16},
+      "id": 8,
+      "targets": [{"expr": "histogram_quantile(0.95, sum by (le, replica) (rate(ray_serve_deployment_processing_latency_ms_bucket{job=\"ray\",application=\"aml\",deployment=\"AMLAPI\",replica=~\"$replica\"}[5m]))) / 1000", "legendFormat": "{{replica}}", "refId": "A"}],
+      "title": "p95 model processing latency by replica",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "short", "min": 0, "max": 1, "decimals": 0}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 25},
+      "id": 9,
+      "targets": [{"expr": "ray_serve_deployment_replica_healthy{job=\"ray\",application=\"aml\",deployment=\"AMLAPI\",replica=~\"$replica\"}", "legendFormat": "{{replica}}", "refId": "A"}],
+      "title": "Replica lifecycle (1 = healthy, 0 = stopped/unhealthy)",
+      "type": "state-timeline"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 25},
+      "id": 10,
+      "targets": [{"expr": "sum by (replica, exception_type) (rate(ray_serve_deployment_error_counter_total{job=\"ray\",application=\"aml\",deployment=\"AMLAPI\",replica=~\"$replica\"}[5m]))", "legendFormat": "{{replica}} — {{exception_type}}", "refId": "A"}],
+      "title": "Model exceptions by replica",
+      "type": "timeseries"
+    },
+    {
+      "gridPos": {"h": 7, "w": 24, "x": 0, "y": 33},
+      "id": 11,
+      "options": {"content": "## Reading replica behavior\n\nA traffic spike raises **queued/executing requests** first. The autoscaler's desired/target line then rises, followed by the healthy-replica count as new model processes finish loading. Throughput should spread across replica IDs. After demand falls, Ray waits for the configured downscale delay and removes idle replicas until one remains. A new replica ID in the lifecycle panel indicates a scale-up or replacement.", "mode": "markdown"},
+      "title": "What to expect",
+      "type": "text"
+    }
+  ],
+  "refresh": "2s",
+  "schemaVersion": 39,
+  "tags": ["aml", "ray-serve", "replicas", "prometheus"],
+  "templating": {
+    "list": [
+      {
+        "allValue": ".*",
+        "current": {"selected": true, "text": "All", "value": "$__all"},
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "definition": "label_values(ray_serve_deployment_replica_healthy{job=\"ray\",application=\"aml\",deployment=\"AMLAPI\"}, replica)",
+        "includeAll": true,
+        "label": "Replica",
+        "multi": true,
+        "name": "replica",
+        "options": [],
+        "query": {"query": "label_values(ray_serve_deployment_replica_healthy{job=\"ray\",application=\"aml\",deployment=\"AMLAPI\"}, replica)", "refId": "StandardVariableQuery"},
+        "refresh": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {"from": "now-15m", "to": "now"},
+  "title": "Ray Serve Replica Behavior",
+  "uid": "ray-serve-replicas",
+  "version": 1
+}
